@@ -1,0 +1,501 @@
+%%------------------------------------------------------
+
+%!PS-Adobe-3.0
+
+%%------------------------------------------------------
+
+%% project : "Biodiversity (A PostScript Pattern Generator)"
+%% version : "final"
+%% date : "2009-09-13"
+%% author : "Luka Tolitch"
+
+%% this script here is just a personal first taste of the ".ps" (i.e. the postscript)!
+%% i have been using the standard adobe's postscript "bluebook",
+%% the 1985 "PostScript Language - Tutorial and Cookbook", available online.
+%% inspired by the introduction of the .ps recursions in chapter seven of that book,
+%% i wrote the code below in order to generate some relatively interesting fractal
+%% visual outputs. i wanted to simulate a collection of morphogenetical
+%% classes that would present visual structures balancing between natural (phytomorphic), and
+%% more regular (tectonic) general visual outcomes. i had a specific interest in
+%% a possible narrowing down of the border between this two classes of forms.
+%% but since the "bluebook" (which, of course, is not a complete coverage
+%% of the .ps syntax, nor of the .ps programming methods) was my only reference at the time of writing,
+%% i've used only the most basic structures throughout the code.
+%% it works, but i've been unable to implement certain obvious improvements (the
+%% "for" loops in recursions, or the "random" methods, for example). therefore,
+%% this version of the script remains highly inflexible (for instance, the number of
+%% branches in a fractal is immutable!). i will learn more soon and rewrite
+%% the code below so that all the necessary criteria are met.
+%% also, i didn't have the time to comment each important line of the code, but
+%% the C++ concepts of "public" and "private" helped a lot in organizing it.
+%% i've even borowed the "namespace" paradigm in order to keep the variables'
+%% names as manageable as possible. using one programming paradigm's habits when
+%% working with a language of another type is wrong, but my object oriented experience
+%% served here more on a metalanguage level, as the organizing trick mentioned.
+%% all the different examples of fractals, collected by type in the .pdf file
+%% were obtained by systematic variation of input parameters in this single script.
+%% if you have the time and interest to experiment, consider the commented 'public' variables
+%% that you can play with.
+%% since all the examples collected in the .pdf file have these parameters displayed
+%% with them (they are indeed 'open source'!), you can use them to get a feeling
+%% of what does what (a sort of a reverse-ingeneering, i guess).
+
+%%------------------------------------------------------
+
+%% FORMAT (default namespace):
+
+	%% PRIVATE:
+
+	/WIDTH 612 def	%% default format width (US Letter width: 612px = (216mm >> inches)/72dpi )
+	/HEIGHT 792 def	%% default format height (US Letter height: 792px = (279mm >> inches)/72dpi)
+
+%%------------------------------------------------------
+
+%% BACKGROUND ("bg_" namespace):
+	
+	%% PUBLIC:
+
+	/bg_gray .333 def		%% background gray level
+	/bg_out 0 def		%% outline T/F toggle
+	/bg_out_gray 1.0 def	%% outline gray level
+	/bg_out_lw 1 def		%% outline line width
+
+%%------------------------------------------------------
+
+%% FRACTAL ("fract_" namespace):
+
+	%% FRACTAL DEPTH:
+
+		%% PUBLIC:
+
+		/fract_depth 5 def	%% number of fractal recursions (the "depth" of the fractal)
+
+	%% INITIAL FRACTAL ORIENTATION:
+
+		%% PUBLIC:
+
+		/fract_init_trans [310 100] def	%% initial x & y translation
+		/fract_init_rot 0 def			%% initial rotation
+		/fract_init_scale [1 1] def		%% initial x & y scale factors
+
+		%% PRIVATE:
+
+		/fract_Init	%% apply initial transformations
+		{
+			fract_init_trans 0 get fract_init_trans 1 get translate
+			fract_init_rot rotate
+			fract_init_scale 0 get fract_init_scale 1 get scale
+		}def
+
+	%% INITIAL FRACTAL SHAPE PARAMETERS:
+
+		%% PUBLIC:
+
+		/fract_size 130 def			%% initial element size
+		/fract_sizemul [.333 1] def		%% initial element horizontal & vertical size factors
+
+		/fract_fill 0 def				%% initial fill/outline toggle (for shapes that support it)
+		/fract_round 4 def			%% initial roundness toggle (for shapes that support it)
+		/fract_lw 16 def				%% initial line width
+		/fract_lc 1 def				%% initial line cap style: 0 = none, 1 = round, 2 = square
+		/fract_lj 1 def				%% initial line join style (for shapes): 0 = none, 1 = round, 2 = square
+
+		%% PRIVATE:
+
+		/fract_width fract_sizemul 0 get fract_size mul def		%% initial element horizontal size
+		/fract_height fract_sizemul 1 get fract_size mul def		%% initial element vertical size
+		/fract_width_round fract_width fract_round 2 mul sub def	%% size of horitontal straight segments of rounded shapes
+		/fract_height_round fract_height fract_round 2 mul sub def	%% size of vertical straight segments of rounded shapes
+
+	%% FRACTAL BRANCHING PARAMETERS ("fract_brn_" namespace):
+
+		%% PUBLIC:
+
+		/fract_brn_trans [ [0 0 0] [.333 0 0] ] def	%% branch x & y translation values
+		/fract_brn_rot [33 -3 -75] def				%% branch rotation values
+		/fract_brn_scale [.6 .8 .7] def				%% branch uniform scale factors
+
+		%% PRIVATE:
+		
+		/fract_brn_Transform %% apply current (i-th) branch transformations
+		{
+			%% stack: <i>
+			/i exch def
+
+			/tx fract_brn_trans 0 get i get fract_width mul def
+			/ty fract_brn_trans 1 get i get fract_height mul neg def
+			tx ty translate
+
+			fract_brn_rot i get rotate
+			fract_brn_scale i get dup scale
+		}def
+
+		/fract_brn_Reset %% reset current (i-th) branch transformations
+		{
+			%% stack: <i>
+			/i exch def
+
+			1 fract_brn_scale i get div dup scale
+			fract_brn_rot i get neg rotate
+
+			/tx fract_brn_trans 0 get i get fract_width mul neg def
+			/ty fract_brn_trans 1 get i get fract_height mul def
+			tx ty translate
+		}def
+
+%%------------------------------------------------------
+
+%% HSB COLOR GRADIENT ("hsb_" namespace):
+
+	%% PUBLIC:
+
+	/hsb_begin	[0.125 1.0 1.0]	def	%% hsb begin values (each in real [0,1] range)
+	/hsb_end	[0.0 0.4666 0.6]	def	%% hsb end values (each in real [0,1] range)
+
+	%% PRIVATE:
+
+	/hsb_incr	[.0 .0 .0]	def	%% hsb increment values
+	/hsb_current [.0 .0 .0]	def	%% hsb current values
+
+	/hsb_Init %% initialize hsb_incr & hsb_current, the gradient's linear interpolations
+	{
+		/i 0 def
+		0 1 2
+		{
+			/hsb_incr hsb_incr i hsb_end i get hsb_begin i get sub fract_depth 1 sub div put	%% hsb_incr init
+			/hsb_current hsb_current i hsb_begin i get put							%% hsb_current init
+			/i i 1 add def
+		}for
+	}def
+
+	/hsb_Increment %% increment/decrement hsb_current (1 = increment, -1 decrement)
+	{
+		%% stack: <direction>
+		/direction exch def
+
+		/i 0 def
+		0 1 2
+		{
+			/hsb_current hsb_current i hsb_current i get hsb_incr i get direction mul add put	%% increment
+			/i i 1 add def
+		}for
+	}def
+
+%%------------------------------------------------------
+
+%% "PRINT" ("pt_" namespace):
+
+	%% PUBLIC:
+
+	/pt_scalefont 8 def								%% font size
+	/pt_project ("a_simple_ps_fractal_gradient_generator") def		%% project name string
+	/pt_version (final_v001_i001) def						%% version string
+	/pt_date (2009-09-13) def							%% date string
+	/pt_script ("Fract_Final_v001_i001.ps") def				%% this script's filename string
+	/pt_psversion (3.0) def								%% postscript version used string
+	/pt_author (L09x00.) def							%% author name string
+
+	%% PRIVATE:
+
+	/pt_xpos pt_scalefont def				%% initial print x position
+	/pt_ypos HEIGHT pt_scalefont 2 mul sub def	%% initial print y position
+	/pt_key bg_gray .25 add def				%% gray level for "keys"
+	/pt_value bg_gray .425 add def			%% gray level for "values"
+	/pt_stringmax 50 def					%% maximum string length (for new string construction)
+
+
+	/pt_Newline { /pt_ypos pt_ypos pt_scalefont sub def }def	%% "newline" the current y printing position
+	/pt_Indent { /pt_xpos pt_xpos pt_scalefont add def }def	%% indent the current x printing position
+	/pt_Dedent { /pt_xpos pt_xpos pt_scalefont sub def }def	%% dedent the current x printing position
+
+	/pt_PrintPair
+	{
+		%% stack: <key_string,value>
+		/value exch def
+		/key_string exch def
+
+		pt_xpos pt_ypos moveto
+
+		pt_key setgray
+		key_string show
+
+		pt_value setgray
+		/value_string pt_stringmax string def
+		value value_string cvs show
+
+		pt_Newline
+	}def
+
+	/pt_PrintPair_xy
+	{
+		%% stack: <x,y,key_string,value>
+		/value exch def
+		/key_string exch def
+		/y exch def
+		/x exch def
+
+		x y moveto
+
+		pt_key setgray
+		key_string show
+	
+		pt_value setgray
+		/value_string pt_stringmax string def
+		value value_string cvs show
+	}def
+
+	/pt_PrintPair_array
+	{
+		%% stack: <key_string,an_array>
+		/an_array exch def
+		/key_string exch def
+
+		pt_xpos pt_ypos moveto
+	
+		pt_key setgray
+		key_string show
+
+		pt_value setgray
+		/array_string pt_stringmax string def
+		([ ) show
+			/i an_array length def
+			an_array
+			{
+				array_string cvs show
+				/i i 1 sub def
+				i 0 gt
+				{
+					(,  ) show
+				}if
+			}forall
+		( ]) show
+
+		pt_Newline
+
+	}def
+
+	/pt_PrintInfos %% just prints out the generator's parameters and the author header
+	{
+		/Times findfont
+		pt_scalefont scalefont
+		setfont
+
+		(----------------------------------------) () pt_PrintPair
+
+		() (TITLE :	) pt_PrintPair
+		pt_Indent
+		(project : ) pt_project pt_PrintPair
+		(version : ) pt_version pt_PrintPair
+		(date : ) pt_date pt_PrintPair
+		(script : ) pt_script pt_PrintPair
+		(postscript version : ) pt_psversion pt_PrintPair
+		(author : ) pt_author pt_PrintPair
+		pt_Dedent
+
+		(----------------------------------------) () pt_PrintPair
+
+		() (FORMAT :) pt_PrintPair
+		pt_Indent
+		(format size (px) = ) [WIDTH HEIGHT] pt_PrintPair_array
+		pt_Dedent
+
+		() (BACKGROUND :) pt_PrintPair
+		pt_Indent
+		(background gray = ) bg_gray pt_PrintPair
+		(background outline toggle = ) bg_out pt_PrintPair
+		(background outline gray = ) bg_out_gray pt_PrintPair
+		(background outline line width = ) bg_out_lw pt_PrintPair
+		pt_Dedent
+
+		(----------------------------------------) () pt_PrintPair
+
+		() (FRACTAL INITIALS:) pt_PrintPair
+		pt_Indent
+		(depth = ) fract_depth pt_PrintPair
+
+		(initial translation = ) [fract_init_trans 0 get fract_init_trans 1 get] pt_PrintPair_array
+		(initial rotation = ) fract_init_rot pt_PrintPair
+		(initial scale factors = ) [fract_init_scale 0 get fract_init_scale 1 get] pt_PrintPair_array
+
+		(initial shape size = ) fract_size pt_PrintPair
+		(initial shape width & height factors = ) [fract_sizemul 0 get fract_sizemul 1 get] pt_PrintPair_array
+
+		(initial shape fill toggle = ) fract_fill pt_PrintPair
+		(initial shape roundness amount = ) fract_round pt_PrintPair
+		(initial shape line width = ) fract_lw pt_PrintPair
+		(initial shape line cap style  = ) fract_lc pt_PrintPair
+		(initial shape line join style  = ) fract_lj pt_PrintPair
+		pt_Dedent
+
+		() (FRACTAL BRANCHING:) pt_PrintPair
+		pt_Indent
+		(x translation factors = ) fract_brn_trans 0 get pt_PrintPair_array
+		(y translation factors = ) fract_brn_trans 1 get pt_PrintPair_array
+		(rotation = ) fract_brn_rot pt_PrintPair_array
+		(scale factors = ) fract_brn_scale pt_PrintPair_array
+		pt_Dedent
+
+		(----------------------------------------) () pt_PrintPair
+
+		() (HSB COLOR GRADIENT :) pt_PrintPair
+		pt_Indent
+		(HSB begin vector = ) hsb_begin pt_PrintPair_array
+		(HSB end vector = ) hsb_end pt_PrintPair_array
+		(HSB increment vector = ) hsb_incr pt_PrintPair_array
+		pt_Dedent
+
+		(----------------------------------------) () pt_PrintPair
+
+	}def
+
+%%------------------------------------------------------
+
+%% "DRAW" PROCEDURES ("draw_" namespace):
+	
+	%% PRIVATE:
+
+	/draw_Bgrnd
+	{
+		newpath
+			0 0 moveto
+			WIDTH 0 rlineto
+			0 HEIGHT rlineto
+			WIDTH neg 0 rlineto
+		closepath
+		gsave
+
+		bg_gray setgray
+		fill
+
+		bg_out 1 eq
+		{
+			grestore
+			bg_out_gray setgray
+			bg_out_lw setlinewidth
+			stroke
+		}if
+
+	}def
+
+	/draw_Line
+	{
+		0 0 moveto
+		0 fract_height rlineto
+	
+		fract_lw setlinewidth
+		fract_lc setlinecap
+		hsb_current aload pop sethsbcolor
+		stroke	
+
+		0 fract_height translate
+	}def
+
+	/draw_Tri %% draw outlined/filled triangle
+	{
+		0 0 moveto
+		fract_width 2 div fract_height rlineto
+		fract_width neg 0 rlineto
+		closepath
+	
+		hsb_current aload pop sethsbcolor
+
+		fract_fill 0 eq{
+			fract_lw setlinewidth
+			fract_lc setlinecap
+			fract_lj setlinejoin
+			stroke
+		}
+		{
+			fill	
+		}ifelse
+
+		0 fract_height translate
+
+	}def
+
+	/draw_Rect %% draw outlined/filled rounded rectangle
+	{
+
+		newpath
+			fract_width 2 div neg fract_round moveto
+			0 0 0 -1 fract_round mul fract_round -1 fract_round mul rcurveto
+			fract_width_round 0 rlineto
+			0 0 fract_round 0 fract_round fract_round rcurveto
+			0 fract_height_round rlineto
+			0 0 0 fract_round -1 fract_round mul fract_round rcurveto
+			-1 fract_width_round mul 0 rlineto
+			0 0 -1 fract_round mul 0 -1 fract_round mul -1 fract_round mul rcurveto
+		closepath
+
+		hsb_current aload pop sethsbcolor
+
+		fract_fill 0 eq{
+			fract_lw setlinewidth
+			fract_lc setlinecap
+			fract_lj setlinejoin
+			stroke
+		}
+		{
+			fill	
+		}ifelse
+
+		0 fract_height translate
+	}def
+
+	/draw_Fract
+	{
+		gsave
+
+			draw_Line %% the nucleus shape of the fractal, one of the above (line, triangle, rectangle)
+
+			1 hsb_Increment
+
+			/fract_depth fract_depth 1 sub def
+
+			fract_depth 0 gt{
+
+				%% due to my present incomplete grasp of the .ps syntax,
+				%% i'm unable to do "for" loops with(in) recursions!
+				%% therefore, the three branch indices are set manually!
+
+				0 fract_brn_Transform
+				draw_Fract
+				0 fract_brn_Reset
+
+				1 fract_brn_Transform
+				draw_Fract
+				1 fract_brn_Reset
+
+				2 fract_brn_Transform
+				draw_Fract
+				2 fract_brn_Reset
+
+			}if
+
+			/fract_depth fract_depth 1 add def
+
+			-1 hsb_Increment
+
+		grestore
+	}def
+
+%%------------------------------------------------------
+%%------------------------------------------------------
+%%------------------------------------------------------
+
+%% MAIN:
+
+hsb_Init %% initialize the HSB color gradient interpolations
+
+draw_Bgrnd %% draw the background first
+
+pt_PrintInfos %% then print out the author and generator informations
+
+fract_Init %% do the initial coordinate transformations
+draw_Fract %% and finally, draw the fractal
+
+showpage
+
+%%------------------------------------------------------
+%%------------------------------------------------------
+%%------------------------------------------------------
