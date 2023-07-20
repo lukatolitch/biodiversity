@@ -1,4 +1,4 @@
-# Biodiversity (A PostScript Pattern Generator)
+# 'Biodiversity' (A PostScript Pattern Generator)
 
 ![Example 1](images/01_LukaTolitch_Biodiversity_2017_CrooksPress_Materials_1.png)
 
